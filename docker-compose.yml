@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: portfolio_db
+    # Use a named volume to persist database data across container restarts
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    # Load environment variables from the .env file
+    env_file:
+      - ./.env
+    # Expose the PostgreSQL port to the host for direct access if needed
+    ports:
+      - "5432:5432"
+    # Healthcheck to ensure the database is ready before the API starts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    # Build the image from the local Dockerfile
+    build: .
+    container_name: portfolio_api
+    # Wait for the database to be healthy before starting the API
+    depends_on:
+      db:
+        condition: service_healthy
+    # Map the host port to the container port
+    ports:
+      - "8000:8000"
+    # Load environment variables from the .env file
+    env_file:
+      - ./.env
+    restart: unless-stopped
+
+# Define the named volume for data persistence
+volumes:
+  postgres_data:
+    driver: local
